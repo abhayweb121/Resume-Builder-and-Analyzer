@@ -1,16 +1,38 @@
+
 # AI-Powered Resume Builder & Analyzer (MERN)
 
-## Setup
+## Project Setup
+
+### Server Setup
 ```bash
-# Server
 cd server
 npm install
-cp .env.example .env     # fill in MONGO_URI, JWT_SECRET, AI keys
-npm run dev              # http://localhost:5000/api/health
-
-# Client: scaffold with Vite (see Phase 1 commands), then
-cd client
 cp .env.example .env
-npm run dev              # http://localhost:5173
+npm run dev
 ```
-Status: Phase 1 done (structure, schemas, server setup). Phase 2: APIs + AI analyzer. Phase 3: React UI.
+
+Server URL: http://localhost:5000
+
+### Client Setup
+```bash
+cd client
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Client URL: http://localhost:5173
+
+## Project
+AI-Powered Resume Builder and Analyzer using MERN Stack.
+
+## Features
+- Resume Builder
+- Resume Analyzer
+- AI-Powered Analysis
+
+## Technology
+- MongoDB
+- Express.js
+- React.js
+- Node.js
