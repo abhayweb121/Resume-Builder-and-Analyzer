@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resume builder and analyzer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📄%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f1f3f7;
+  --ink: #1b2433;
+  --muted: #5d6779;
+  --line: #d3d9e3;
+  --accent: #0b6e8a;
+  --good: #1f7a4d;
+  --mid: #a86a00;
+  --low: #b3262e;
+  color-scheme: light;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+.app { max-width: 1150px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+h1 { font-family: Georgia, serif; font-size: clamp(1.5rem, 4vw, 2.1rem); margin: 0; letter-spacing: -.01em; }
+h2 { font-size: 1.05rem; margin: 1.75rem 0 .6rem; }
+nav { display: flex; gap: .4rem; }
+.tab { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.tab.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+@media (max-width: 860px) { .split { grid-template-columns: minmax(0, 1fr); } .preview { position: static; } }
+.editor, .result { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 1.25rem; }
+.editor > h2:first-child, .result > h2:first-child { margin-top: 0; }
+.bar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; }
+.bar label { flex: 1 1 160px; }
+.bar button { margin-bottom: .6rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .6rem; }
+label { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; color: var(--muted); margin-bottom: .6rem; }
+input, textarea { font: inherit; padding: .55rem .65rem; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: #fff; resize: vertical; width: 100%; }
+button { font: inherit; cursor: pointer; padding: .55rem 1rem; border: 0; border-radius: 6px; background: var(--accent); color: #fff; }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+button.small { padding: .3rem .7rem; font-size: .85rem; }
+button.danger { color: var(--low); border-color: var(--low); }
+:focus-visible { outline: 3px solid #e0a000; outline-offset: 2px; }
+.item { border-top: 1px solid var(--line); padding-top: .8rem; margin-bottom: .8rem; }
+.note { color: var(--muted); font-size: .9rem; }
+.note.ok { color: var(--good); font-weight: 600; }
+.note.error { color: var(--low); font-weight: 600; }
+#flash { margin: 0 0 1rem; }
+.saved { list-style: none; padding: 0; margin: .8rem 0 0; }
+.saved li { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .6rem 0; border-top: 1px solid var(--line); }
+.saved small { color: var(--muted); margin-left: .4rem; }
+.preview { position: sticky; top: 1rem; }
+.sheet { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 2rem; font-family: Georgia, serif; font-size: .92rem; line-height: 1.5; min-height: 520px; overflow-wrap: anywhere; }
+.sheet h2 { font-size: 1.6rem; margin: 0; }
+.sheet .contact { color: var(--muted); font-size: .82rem; margin: .2rem 0 .8rem; }
+.sheet h3 { font-size: .95rem; margin: 1.1rem 0 .3rem; padding-bottom: .15rem; border-bottom: 1px solid var(--ink); }
+.sheet p { margin: .15rem 0; }
+.sheet .entry span { float: right; color: var(--muted); font-size: .82rem; }
+.pre { white-space: pre-wrap; }
+.score { display: flex; align-items: baseline; gap: .5rem; }
+.score strong { font-size: 3.2rem; line-height: 1; }
+.score.good strong { color: var(--good); } .score.mid strong { color: var(--mid); } .score.low strong { color: var(--low); }
+.score span { color: var(--muted); }
+.meter { margin-bottom: .7rem; font-size: .9rem; }
+.meter span { display: flex; justify-content: space-between; margin-bottom: .2rem; }
+.meter em { font-style: normal; color: var(--muted); }
+.meter div { height: 8px; background: #e6eaf1; border-radius: 4px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--accent); }
+.tips { padding-left: 1.1rem; line-height: 1.6; }
+.label { font-size: .85rem; color: var(--muted); margin: .6rem 0 .3rem; }
+.chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip { font-size: .82rem; padding: .2rem .55rem; border-radius: 4px; }
+.chip.ok { background: #dff1e7; color: #14543a; }
+.chip.miss { background: #f8e0e2; color: #7c1a20; }
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff; }
+  body * { visibility: hidden; }
+  .sheet, .sheet * { visibility: visible; }
+  .sheet { position: absolute; left: 0; top: 0; width: 100%; border: 0; padding: 0; min-height: 0; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Resume builder and analyzer</h1>
+    <nav aria-label="Sections">
+      <button class="tab on" data-tab="build" type="button">Build</button>
+      <button class="tab" data-tab="analyze" type="button">Analyze</button>
+    </nav>
+  </header>
+
+  <p id="flash" class="note" role="status" hidden></p>
+
+  <!-- ============ BUILD ============ -->
+  <main id="build" class="split">
+    <section class="editor" id="editor">
+      <div class="bar">
+        <label>Resume title <input id="f-title" data-k="title" type="text"></label>
+        <button type="button" data-action="save">Save resume</button>
+        <button type="button" class="ghost" data-action="pdf">Download PDF</button>
+      </div>
+
+      <h2>Personal details</h2>
+      <div class="grid">
+        <label>Full name <input data-k="name" type="text" autocomplete="name"></label>
+        <label>Email <input data-k="email" type="email" autocomplete="email"></label>
+        <label>Phone <input data-k="phone" type="text" autocomplete="tel"></label>
+        <label>Location <input data-k="location" type="text"></label>
+      </div>
+      <label>Links (LinkedIn, GitHub) <input data-k="links" type="text"></label>
+      <label>Summary <textarea data-k="summary" rows="3"></textarea></label>
+      <label>Skills (comma separated) <input data-k="skills" type="text"></label>
+
+      <div id="lists"></div>
+
+      <h2>Saved resumes</h2>
+      <button type="button" class="ghost" data-action="new">Start a new resume</button>
+      <p id="saved-empty" class="note">Nothing saved yet. Fill in your details and select Save resume. Resumes are stored in this browser only.</p>
+      <ul class="saved" id="saved"></ul>
+    </section>
+    <section class="preview"><article class="sheet" id="sheet" aria-label="Resume preview"></article></section>
+  </main>
+
+  <!-- ============ ANALYZE ============ -->
+  <main id="analyze" class="split" hidden>
+    <form class="editor" id="analyze-form">
+      <h2>Resume to check</h2>
+      <p class="note">Paste your resume text below. Leave it empty to check the resume you built in the Build tab.</p>
+      <label>Resume text
+        <textarea id="a-text" rows="10" placeholder="Paste your resume here"></textarea>
+      </label>
+      <h2>Job description</h2>
+      <label>Optional. Add it to see how well your resume matches the role.
+        <textarea id="a-jd" rows="8" placeholder="Paste the job description here"></textarea>
+      </label>
+      <button type="submit">Analyze resume</button>
+      <p id="a-error" class="note error" role="alert" hidden></p>
+    </form>
+    <section class="result" id="result" aria-live="polite">
+      <p class="note">Your score and suggestions appear here.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const blank = () => ({
+  id: null,
+  title: 'My resume',
+  name: '', email: '', phone: '', location: '', links: '',
+  summary: '', skills: '',
+  experience: [{ role: '', company: '', period: '', details: '' }],
+  education: [{ degree: '', school: '', period: '' }],
+  projects: [{ name: '', details: '' }],
+});
+
+const LISTS = {
+  experience: { label: 'Experience', fields: [['role', 'Role'], ['company', 'Company'], ['period', 'Period'], ['details', 'What you did', true]] },
+  education:  { label: 'Education',  fields: [['degree', 'Degree'], ['school', 'School'], ['period', 'Period']] },
+  projects:   { label: 'Projects',   fields: [['name', 'Project name'], ['details', 'Details', true]] },
+};
+
+/* ---------- storage (browser only, no server) ---------- */
+const KEY = 'resume-builder-analyzer.v1';
+function loadSaved() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; }
+}
+function writeSaved(list) {
+  try { localStorage.setItem(KEY, JSON.stringify(list)); return true; } catch { return false; }
+}
+
+/* ---------- state ---------- */
+let resume = blank();
+let flashTimer;
+
+function flash(msg, kind = 'ok') {
+  const el = $('#flash');
+  el.textContent = msg;
+  el.className = 'note ' + kind;
+  el.hidden = false;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { el.hidden = true; }, 3500);
+}
+
+/* ---------- tabs ---------- */
+$$('.tab').forEach((b) => b.addEventListener('click', () => {
+  $$('.tab').forEach((t) => t.classList.toggle('on', t === b));
+  $('#build').hidden = b.dataset.tab !== 'build';
+  $('#analyze').hidden = b.dataset.tab !== 'analyze';
+}));
+
+/* ---------- editor ---------- */
+function fillTopFields() {
+  $$('#editor [data-k]:not([data-list])').forEach((el) => { el.value = resume[el.dataset.k] || ''; });
+}
+
+function renderLists() {
+  $('#lists').innerHTML = Object.entries(LISTS).map(([list, cfg]) => `
+    <div>
+      <h2>${cfg.label}</h2>
+      ${resume[list].map((item, i) => `
+        <div class="item">
+          <div class="grid">
+            ${cfg.fields.map(([k, label, area]) => `
+              <label>${label}
+                ${area
+                  ? `<textarea rows="3" data-list="${list}" data-i="${i}" data-k="${k}">${esc(item[k])}</textarea>`
+                  : `<input type="text" data-list="${list}" data-i="${i}" data-k="${k}" value="${esc(item[k])}">`}
+              </label>`).join('')}
+          </div>
+          <button type="button" class="ghost small" data-action="remove" data-list="${list}" data-i="${i}">Remove</button>
+        </div>`).join('')}
+      <button type="button" class="ghost" data-action="add" data-list="${list}">Add ${cfg.label.toLowerCase()} entry</button>
+    </div>`).join('');
+}
+
+function renderSaved() {
+  const saved = loadSaved().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  $('#saved-empty').hidden = saved.length > 0;
+  $('#saved').innerHTML = saved.map((r) => `
+    <li>
+      <span>${esc(r.title || 'Untitled')} <small>${esc(r.name)}</small></span>
+      <span>
+        <button type="button" class="ghost small" data-action="open" data-id="${esc(r.id)}">Open</button>
+        <button type="button" class="ghost small danger" data-action="delete" data-id="${esc(r.id)}">Delete</button>
+      </span>
+    </li>`).join('');
+}
+
+function renderPreview() {
+  const r = resume;
+  const contact = [r.email, r.phone, r.location, r.links].filter(Boolean).join('  |  ');
+  const skills = (r.skills || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const exp = r.experience.filter((e) => e.role || e.company || e.details);
+  const edu = r.education.filter((e) => e.degree || e.school);
+  const pr = r.projects.filter((p) => p.name || p.details);
+  $('#sheet').innerHTML = `
+    <h2>${esc(r.name || 'Your name')}</h2>
+    <p class="contact">${esc(contact || 'email | phone | city')}</p>
+    ${r.summary ? `<h3>Summary</h3><p class="pre">${esc(r.summary)}</p>` : ''}
+    ${exp.length ? `<h3>Experience</h3>${exp.map((e) => `
+      <div class="entry"><p><strong>${esc(e.role)}</strong>${e.company ? esc(', ' + e.company) : ''}<span>${esc(e.period)}</span></p><p class="pre">${esc(e.details)}</p></div>`).join('')}` : ''}
+    ${pr.length ? `<h3>Projects</h3>${pr.map((p) => `
+      <div class="entry"><p><strong>${esc(p.name)}</strong></p><p class="pre">${esc(p.details)}</p></div>`).join('')}` : ''}
+    ${edu.length ? `<h3>Education</h3>${edu.map((e) => `
+      <div class="entry"><p><strong>${esc(e.degree)}</strong>${e.school ? esc(', ' + e.school) : ''}<span>${esc(e.period)}</span></p></div>`).join('')}` : ''}
+    ${skills.length ? `<h3>Skills</h3><p>${esc(skills.join(', '))}</p>` : ''}`;
+}
+
+function renderAll() {
+  fillTopFields();
+  renderLists();
+  renderPreview();
+  renderSaved();
+}
+
+// live typing -> state -> preview
+$('#editor').addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.dataset.k) return;
+  if (el.dataset.list) resume[el.dataset.list][+el.dataset.i][el.dataset.k] = el.value;
+  else resume[el.dataset.k] = el.value;
+  renderPreview();
+});
+
+// buttons
+$('#editor').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const { action, list, i, id } = btn.dataset;
+
+  if (action === 'add') {
+    resume[list].push(Object.fromEntries(LISTS[list].fields.map(([k]) => [k, ''])));
+    renderLists(); renderPreview();
+  } else if (action === 'remove') {
+    resume[list].splice(+i, 1);
+    renderLists(); renderPreview();
+  } else if (action === 'save') {
+    const all = loadSaved();
+    if (!resume.id) resume.id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+    const doc = { ...JSON.parse(JSON.stringify(resume)), updatedAt: Date.now() };
+    const idx = all.findIndex((r) => r.id === doc.id);
+    if (idx >= 0) all[idx] = doc; else all.push(doc);
+    if (writeSaved(all)) { flash('Resume saved'); renderSaved(); }
+    else flash('Could not save. Your browser is blocking local storage.', 'error');
+  } else if (action === 'pdf') {
+    window.print();
+  } else if (action === 'new') {
+    resume = blank(); renderAll();
+  } else if (action === 'open') {
+    const found = loadSaved().find((r) => r.id === id);
+    if (found) { resume = { ...blank(), ...found }; renderAll(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  } else if (action === 'delete') {
+    if (!confirm('Delete this saved resume?')) return;
+    writeSaved(loadSaved().filter((r) => r.id !== id));
+    if (resume.id === id) resume = blank();
+    renderAll();
+    flash('Resume deleted');
+  }
+});
+
+/* ---------- analyzer (rule based, runs fully in the browser) ---------- */
+const ACTION_VERBS = ['led','built','developed','designed','created','implemented','managed','improved','increased','reduced','launched','delivered','optimized','analyzed','automated','organized','coordinated','trained','researched','achieved','established','streamlined','deployed','collaborated','mentored','resolved','produced','presented'];
+const WEAK = ['responsible for','worked on','helped with','helped','duties included','tried to','various tasks'];
+const STOP = new Set(('the and for with you your our are will have has this that from they their who what when where which about into over under can able must should would could not but all any such per via etc more most other than then them these those its was were been being job role team work working years year experience candidate looking required requirements preferred ability strong good including include also use using used well new one two may like get make').split(' '));
+
+function resumeToText(r) {
+  const out = [r.name, r.email, r.phone, r.location, r.links];
+  if (r.summary) out.push('Summary', r.summary);
+  const exp = (r.experience || []).filter((e) => e.role || e.company || e.details);
+  if (exp.length) out.push('Experience', ...exp.map((e) => `${e.role} ${e.company} ${e.period}\n${e.details || ''}`));
+  const edu = (r.education || []).filter((e) => e.degree || e.school);
+  if (edu.length) out.push('Education', ...edu.map((e) => `${e.degree} ${e.school} ${e.period}`));
+  if (r.skills) out.push('Skills', r.skills);
+  const pr = (r.projects || []).filter((p) => p.name || p.details);
+  if (pr.length) out.push('Projects', ...pr.map((p) => `${p.name}\n${p.details || ''}`));
+  return out.filter(Boolean).join('\n');
+}
+
+const tokens = (s) => (s.toLowerCase().match(/[a-z0-9+#.]+/g) || []).map((t) => t.replace(/^\.+|\.+$/g, '')).filter(Boolean);
+
+function jdKeywords(jd) {
+  const freq = new Map();
+  tokens(jd).forEach((t) => {
+    if (t.length < 3 || STOP.has(t) || /^\d+$/.test(t)) return;
+    freq.set(t, (freq.get(t) || 0) + 1);
+  });
+  return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([t]) => t);
+}
+
+function analyze(text, jobDescription = '') {
+  const lower = text.toLowerCase();
+  const words = tokens(text);
+  const wc = words.length;
+  const tips = [];
+  const breakdown = [];
+
+  // 1. Contact (20)
+  const hasEmail = /[\w.+-]+@[\w-]+\.[\w.]+/.test(text);
+  const hasPhone = /(\+?\d[\d\s-]{8,}\d)/.test(text);
+  const hasLink = /(linkedin\.com|github\.com|portfolio|https?:\/\/)/i.test(text);
+  const contact = (hasEmail ? 8 : 0) + (hasPhone ? 6 : 0) + (hasLink ? 6 : 0);
+  if (!hasEmail) tips.push('Email address add kijiye.');
+  if (!hasPhone) tips.push('Phone number add kijiye.');
+  if (!hasLink) tips.push('LinkedIn ya GitHub link add kijiye.');
+  breakdown.push({ label: 'Contact details', score: contact, max: 20 });
+
+  // 2. Sections (25)
+  const has = {
+    summary: /^\s*(professional\s+)?(summary|objective|profile)\b/im.test(text),
+    experience: /^\s*(work\s+|professional\s+)?(experience|internships?)\b/im.test(text),
+    education: /^\s*education\b/im.test(text),
+    skills: /^\s*(technical\s+|key\s+)?skills\b/im.test(text),
+    projects: /^\s*projects?\b/im.test(text),
+  };
+  const sections = (has.summary ? 5 : 0) + (has.experience ? 7 : 0) + (has.education ? 6 : 0) + (has.skills ? 7 : 0);
+  if (!has.summary) tips.push('2-3 line ka Summary section add kijiye.');
+  if (!has.experience) tips.push('Experience ya Internship section add kijiye (fresher ho to projects bhi chalenge).');
+  if (!has.education) tips.push('Education section add kijiye.');
+  if (!has.skills) tips.push('Skills section add kijiye.');
+  if (!has.projects) tips.push('Projects section add karne se resume mazboot hota hai.');
+  breakdown.push({ label: 'Key sections', score: sections, max: 25 });
+
+  // 3. Content quality (25)
+  let lenScore = 0;
+  if (wc >= 300 && wc <= 800) lenScore = 8;
+  else if ((wc >= 150 && wc < 300) || (wc > 800 && wc <= 1000)) lenScore = 4;
+  if (wc < 300) tips.push(`Resume chhota hai (${wc} words). 300-800 words ideal hain.`);
+  if (wc > 800) tips.push(`Resume lamba hai (${wc} words). Ise 1-2 page me rakhiye.`);
+  const verbs = ACTION_VERBS.filter((v) => new RegExp(`\\b${v}\\b`).test(lower));
+  const verbScore = Math.round((Math.min(verbs.length, 8) / 8) * 9);
+  if (verbs.length < 5) tips.push('Zyada action verbs use kijiye (built, led, improved, ...).');
+  const metrics = (text.match(/\d+(\.\d+)?\s?(%|\+|k\b|x\b)|[$₹]\s?\d+/gi) || []).length;
+  const metricScore = Math.round((Math.min(metrics, 5) / 5) * 8);
+  if (metrics < 3) tips.push('Numbers add kijiye (jaise "load time 30% kam kiya", "500+ users").');
+  const weakFound = WEAK.filter((w) => lower.includes(w));
+  if (weakFound.length) tips.push(`Kamzor phrases badlein: ${weakFound.join(', ')}. Inki jagah strong action verb likhiye.`);
+  const content = Math.max(0, lenScore + verbScore + metricScore - Math.min(weakFound.length, 3));
+  breakdown.push({ label: 'Content quality', score: content, max: 25 });
+
+  // 4. Keyword match with job description (30)
+  let matched = [];
+  let missing = [];
+  let max = 70;
+  let earned = contact + sections + content;
+  if (jobDescription.trim()) {
+    const kws = jdKeywords(jobDescription);
+    const set = new Set(words);
+    matched = kws.filter((k) => set.has(k));
+    missing = kws.filter((k) => !set.has(k));
+    const kwScore = kws.length ? Math.round((matched.length / kws.length) * 30) : 0;
+    earned += kwScore;
+    max = 100;
+    breakdown.push({ label: 'Job description match', score: kwScore, max: 30 });
+    if (missing.length) tips.push(`Job description ke ye keywords resume me nahi mile: ${missing.slice(0, 8).join(', ')}.`);
+  }
+
+  const score = Math.round((earned / max) * 100);
+  return { score, wordCount: wc, breakdown, suggestions: tips, matched, missing, hasJobDescription: max === 100 };
+}
+
+function renderResult(r) {
+  const tone = r.score >= 75 ? 'good' : r.score >= 50 ? 'mid' : 'low';
+  $('#result').innerHTML = `
+    <div class="score ${tone}"><strong>${r.score}</strong><span>out of 100</span></div>
+    <p class="note">${r.wordCount} words${r.hasJobDescription ? '' : '. Add a job description for a keyword match score.'}</p>
+    <h2>Score breakdown</h2>
+    ${r.breakdown.map((b) => `
+      <div class="meter">
+        <span>${esc(b.label)}<em>${b.score}/${b.max}</em></span>
+        <div><i style="width:${(b.score / b.max) * 100}%"></i></div>
+      </div>`).join('')}
+    <h2>What to improve</h2>
+    ${r.suggestions.length === 0
+      ? '<p class="note">No major issues found.</p>'
+      : `<ul class="tips">${r.suggestions.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>`}
+    ${r.hasJobDescription ? `
+      <h2>Keywords</h2>
+      <p class="label">Found in your resume</p>
+      <div class="chips">${r.matched.map((k) => `<span class="chip ok">${esc(k)}</span>`).join('') || '<span class="note">None</span>'}</div>
+      <p class="label">Missing</p>
+      <div class="chips">${r.missing.map((k) => `<span class="chip miss">${esc(k)}</span>`).join('') || '<span class="note">None, every keyword is covered.</span>'}</div>` : ''}`;
+}
+
+$('#analyze-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const err = $('#a-error');
+  const typed = $('#a-text').value.trim();
+  const content = typed || resumeToText(resume);
+  err.hidden = true;
+  if (content.split(/\s+/).filter(Boolean).length < 20) {
+    err.textContent = 'Resume is too short. Add at least 20 words, or fill in the Build tab first.';
+    err.hidden = false;
+    $('#result').innerHTML = '<p class="note">Your score and suggestions appear here.</p>';
+    return;
+  }
+  renderResult(analyze(content, $('#a-jd').value));
+});
+
+/* ---------- start ---------- */
+renderAll();
+</script>
+</body>
+</html>
